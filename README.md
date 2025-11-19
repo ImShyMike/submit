@@ -1,3 +1,5 @@
+Submit Admin Secret: rgnreo8srvSDVs87vrv9r0bsrR%Grsnvsr7brs
+
 # Hack Club Submit
 
 A lightweight Rails app that powers Hack Club's Submit flow. It handles OAuth with Hack Club Identity, issues short-lived tokens, and lets YSWS sites pre-fill forms with verified Identity Vault info.
