@@ -137,8 +137,9 @@ class IdentityController < ApplicationController
   http.use_ssl = token_uri.scheme == 'https'
   http.open_timeout = 3
   http.read_timeout = 5
-    req = Net::HTTP::Post.new(token_uri, { 'Content-Type' => 'application/json' })
-    req.body = body.to_json
+    req = Net::HTTP::Post.new(token_uri)
+    req['Content-Type'] = 'application/x-www-form-urlencoded'
+    req.body = URI.encode_www_form(body)
     begin
       res = http.request(req)
     rescue => e

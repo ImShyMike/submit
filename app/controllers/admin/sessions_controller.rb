@@ -11,7 +11,7 @@ class Admin::SessionsController < ApplicationController
     nextauth_url = ENV['NEXTAUTH_URL'].presence || request.base_url
     query = {
       client_id: ENV['IDENTITY_CLIENT_ID'],
-      redirect_uri: File.join(nextauth_url, 'admin/callback'),
+      redirect_uri: join_url(nextauth_url, 'admin/callback'),
       response_type: 'code',
       scope: 'basic_info',
       state: state
@@ -31,7 +31,7 @@ class Admin::SessionsController < ApplicationController
       code: code,
       client_id: ENV['IDENTITY_CLIENT_ID'],
       client_secret: ENV['IDENTITY_CLIENT_SECRET'],
-      redirect_uri: File.join(ENV['NEXTAUTH_URL'].presence || request.base_url, 'admin/callback'),
+      redirect_uri: join_url(ENV['NEXTAUTH_URL'].presence || request.base_url, 'admin/callback'),
       grant_type: 'authorization_code'
     }
 
@@ -39,8 +39,9 @@ class Admin::SessionsController < ApplicationController
       http.use_ssl = token_uri.scheme == 'https'
       http.open_timeout = 3
       http.read_timeout = 5
-    req = Net::HTTP::Post.new(token_uri, { 'Content-Type' => 'application/json' })
-    req.body = body.to_json
+    req = Net::HTTP::Post.new(token_uri)
+    req['Content-Type'] = 'application/x-www-form-urlencoded'
+    req.body = URI.encode_www_form(body)
       begin
         res = http.request(req)
       rescue => e
