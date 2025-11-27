@@ -149,6 +149,7 @@ class Popup::AuthorizeController < ApplicationController
       render :success, layout: 'application'
       
     rescue => e
+      Sentry.capture_exception(e)
       Rails.logger.error("Popup OAuth error: #{e.message}")
       UserJourneyEvent.create!(
         event_type: 'popup_oauth_error',

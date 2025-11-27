@@ -82,6 +82,7 @@ module Api
       end
 
       unless ENV['IDENTITY_URL'].present? && ENV['IDENTITY_PROGRAM_KEY'].present?
+        Sentry.capture_message('Missing Identity Vault configuration')
         Rails.logger.error('Missing Identity Vault configuration')
         attempt = create_attempt_safely!(
           idv_rec: idv_rec,
@@ -120,6 +121,7 @@ module Api
       begin
         res = http.request(req)
       rescue => e
+        Sentry.capture_exception(e)
         Rails.logger.error("Identity API error: #{e.class}: #{e.message}")
         attempt = create_attempt_safely!(idv_rec: idv_rec, first_name: first_name, last_name: last_name, email: email, program: program_slug, submit_id: submit_id, verified: false, identity_response: nil, ip: request.remote_ip)
         UserJourneyEvent.create!(event_type: 'verification_attempt', program: program_slug, idv_rec: idv_rec, email: email, request_ip: request.remote_ip, verification_attempt_id: attempt&.id, metadata: { error: 'fetch_timeout', submit_id: submit_id }) rescue nil
@@ -132,6 +134,7 @@ module Api
           UserJourneyEvent.create!(event_type: 'verification_attempt', program: program_slug, idv_rec: idv_rec, email: email, request_ip: request.remote_ip, verification_attempt_id: attempt&.id, metadata: { error: '404', submit_id: submit_id }) rescue nil
           return render json: { verified: false, identity_response: nil }
         else
+          Sentry.capture_message("User fetch failed: #{res.code} - #{res.body}")
           Rails.logger.error("User fetch failed: #{res.code} - #{res.body}")
           attempt = create_attempt_safely!(idv_rec: idv_rec, first_name: first_name, last_name: last_name, email: email, program: program_slug, submit_id: submit_id, verified: false, identity_response: nil, ip: request.remote_ip)
           UserJourneyEvent.create!(event_type: 'verification_attempt', program: program_slug, idv_rec: idv_rec, email: email, request_ip: request.remote_ip, verification_attempt_id: attempt&.id, metadata: { error: 'fetch_failed', code: res.code, submit_id: submit_id }) rescue nil
@@ -144,6 +147,7 @@ module Api
         user_data = body['identity']
         user_data = IdentityNormalizer.normalize(user_data)
       rescue => e
+        Sentry.capture_exception(e)
         Rails.logger.error("Invalid JSON from identity API: #{e.message}")
         attempt = create_attempt_safely!(
           idv_rec: idv_rec,
@@ -277,6 +281,7 @@ module Api
       ) rescue nil
       render json: { verified: false, error: 'Submit token already used', identity_response: nil }, status: :gone
     rescue => e
+      Sentry.capture_exception(e)
       Rails.logger.error("Verification error: #{e.message}")
       attempt = create_attempt_safely!(idv_rec: idv_rec, first_name: first_name, last_name: last_name, email: email, program: (program_rec&.slug || program_slug), submit_id: submit_id, verified: false, identity_response: nil, ip: request.remote_ip)
       UserJourneyEvent.create!(event_type: 'verification_attempt', program: (program_rec&.slug || program_slug), idv_rec: idv_rec, email: email, request_ip: request.remote_ip, verification_attempt_id: attempt&.id, metadata: { error: 'exception', message: e.message, submit_id: submit_id }) rescue nil
