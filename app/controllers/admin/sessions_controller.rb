@@ -44,10 +44,14 @@ class Admin::SessionsController < ApplicationController
       begin
         res = http.request(req)
       rescue => e
+        Sentry.capture_exception(e)
         Rails.logger.error("Admin OAuth token exchange error: #{e.class}: #{e.message}")
         return redirect_to root_path, alert: 'OAuth failed'
       end
-    return redirect_to root_path, alert: 'OAuth failed' unless res.is_a?(Net::HTTPSuccess)
+    unless res.is_a?(Net::HTTPSuccess)
+      Sentry.capture_message("OAuth token exchange failed: #{res.code} - #{res.body}")
+      return redirect_to root_path, alert: 'OAuth failed'
+    end
 
     token_data = JSON.parse(res.body)
 
@@ -61,16 +65,21 @@ class Admin::SessionsController < ApplicationController
       begin
         me_res = http.request(req)
       rescue => e
+        Sentry.capture_exception(e)
         Rails.logger.error("Admin profile fetch error: #{e.class}: #{e.message}")
         return redirect_to root_path, alert: 'Profile fetch failed'
       end
-    return redirect_to root_path, alert: 'Profile fetch failed' unless me_res.is_a?(Net::HTTPSuccess)
+    unless me_res.is_a?(Net::HTTPSuccess)
+      Sentry.capture_message("Profile fetch failed: #{me_res.code} - #{me_res.body}")
+      return redirect_to root_path, alert: 'Profile fetch failed'
+    end
 
   user_data = JSON.parse(me_res.body)['identity']
   user_data = IdentityNormalizer.normalize(user_data)
       # Verify and consume state
       state_data = StateToken.verify(state)
       if session[:admin_state_nonce].blank? || state_data.nil? || state_data['nonce'] != session[:admin_state_nonce]
+        Sentry.capture_message('OAuth state verification failed')
         return redirect_to root_path, alert: 'OAuth failed'
       end
       session.delete(:admin_state_nonce)
